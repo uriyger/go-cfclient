@@ -179,7 +179,9 @@ func (c *Client) ListV3ServicePlansForSpace(spaceGUIDs, brokerNames string) ([]V
 	query := url.Values{}
 	query["available"] = []string{"true"}
 	query["include"] = []string{"service_offering"}
-	query["space_guids"] = []string{spaceGUIDs}
+	if spaceGUIDs != "" {
+		query["space_guids"] = []string{spaceGUIDs}
+	}
 
 	if brokerNames != "" {
 		query["service_broker_names"] = []string{brokerNames}
