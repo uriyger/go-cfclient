@@ -10,8 +10,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// V3ServicePlan represents model of service plan object for v3
-type V3ServicePlan struct {
+// V3Plan represents model of service plan object for v3
+type V3Plan struct {
 
 	//Name of the service plan
 	Name string `json:"name"`
@@ -38,10 +38,10 @@ type V3ServicePlan struct {
 	MaintenanceInfo MaintenanceInfo `json:"maintenance_info"`
 
 	//This object contains information obtained from the service broker catalog
-	BrokerCatalog V3ServicePlanBrokerCatalog `json:"broker_catalog"`
+	BrokerCatalog V3PlanBrokerCatalog `json:"broker_catalog"`
 
 	//Schema definitions for service instances and service bindings for the service plan
-	Schemas map[string]interface{} `json:"schemas"`
+	Schemas V3PlanSchemas `json:"schemas"`
 
 	// Relationships possible keys:
 	// "service_offering" to-one relationship. The service offering that this service plan relates to
@@ -61,8 +61,8 @@ type V3ServicePlan struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
-// V3ServicePlanBrokerCatalog represents "broker_catalog" field from service plan object
-type V3ServicePlanBrokerCatalog struct {
+// V3PlanBrokerCatalog represents "broker_catalog" field from service plan object
+type V3PlanBrokerCatalog struct {
 	// The identifier that the service broker provided for this service plan
 	ID string `json:"id"`
 
@@ -73,11 +73,11 @@ type V3ServicePlanBrokerCatalog struct {
 	MaximumPollingDuration int `json:"maximum_polling_duration"`
 
 	// Service Plan properties
-	Features V3ServicePlanBrokerCatalogFeatures `json:"features"`
+	Features V3PlanBrokerCatalogFeatures `json:"features"`
 }
 
-// V3ServicePlanBrokerCatalogFeatures represents "features" field from broker_catalog object from service plan object
-type V3ServicePlanBrokerCatalogFeatures struct {
+// V3PlanBrokerCatalogFeatures represents "features" field from broker_catalog object from service plan object
+type V3PlanBrokerCatalogFeatures struct {
 	// Whether the service plan supports upgrade/downgrade for service plans; when the catalog does not specify a value,
 	// it is inherited from the service offering
 	PlanUpdateable bool `json:"plan_updateable"`
@@ -86,8 +86,8 @@ type V3ServicePlanBrokerCatalogFeatures struct {
 	Bindable bool `json:"bindable"`
 }
 
-// V3ServiceOffering represents model of service plan object for v3
-type V3ServiceOffering struct {
+// V3Offering represents model of service plan object for v3
+type V3Offering struct {
 	//Name of the service offering
 	Name string `json:"name"`
 
@@ -118,7 +118,7 @@ type V3ServiceOffering struct {
 	Relationships map[string]V3ToOneRelationship `json:"relationships"`
 
 	// This object contains information obtained from the service broker Catalog
-	BrokerCatalog V3ServiceOfferingBrokerCatalog `json:"broker_catalog"`
+	BrokerCatalog V3OfferingBrokerCatalog `json:"broker_catalog"`
 
 	// Service offering metadata
 	Metadata V3Metadata `json:"metadata"`
@@ -133,8 +133,8 @@ type V3ServiceOffering struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
-// V3ServiceOfferingBrokerCatalog represents "broker_catalog" field from service offering object
-type V3ServiceOfferingBrokerCatalog struct {
+// V3OfferingBrokerCatalog represents "broker_catalog" field from service offering object
+type V3OfferingBrokerCatalog struct {
 	// The identifier that the service broker provided for this service offering
 	ID string `json:"id"`
 
@@ -165,17 +165,37 @@ type V3ServiceOfferingBrokerCatalogFeatures struct {
 
 // V3PlansIncluded model for included object in service plans response
 type V3PlansIncluded struct {
-	ServiceOfferings []V3ServiceOffering `json:"service_offerings,omitempty"`
+	ServiceOfferings []V3Offering `json:"service_offerings,omitempty"`
+}
+
+// V3PlanSchemas model foe Schema definitions for service instances and service bindings for the service plan
+type V3PlanSchemas struct {
+	Instance V3ServiceInstanceSchema `json:"service_instance"`
+	Binding  V3ServiceBindingSchema  `json:"service_binding"`
+}
+
+type V3ServiceInstanceSchema struct {
+	Create V3Schema `json:"create"`
+	Update V3Schema `json:"update"`
+}
+
+type V3ServiceBindingSchema struct {
+	Create V3Schema `json:"create"`
+}
+
+type V3Schema struct {
+	// The schema definition for the input parameters; each input parameter is expressed as a property within a JSON object
+	Parameters map[string]interface{} `json:"parameters"`
 }
 
 type listV3PlansResponse struct {
 	Pagination Pagination      `json:"pagination,omitempty"`
-	Resources  []V3ServicePlan `json:"resources,omitempty"`
+	Resources  []V3Plan        `json:"resources,omitempty"`
 	Included   V3PlansIncluded `json:"included,omitempty"`
 }
 
 // ListV3ServicePlansForSpace retrieves available service plans and offerings for specific space and broker names
-func (c *Client) ListV3ServicePlansForSpace(spaceGUIDs, brokerNames string) ([]V3ServicePlan, []V3ServiceOffering, error) {
+func (c *Client) ListV3ServicePlansForSpace(spaceGUIDs, brokerNames string) ([]V3Plan, []V3Offering, error) {
 	query := url.Values{}
 	query["available"] = []string{"true"}
 	query["include"] = []string{"service_offering"}
@@ -190,11 +210,11 @@ func (c *Client) ListV3ServicePlansForSpace(spaceGUIDs, brokerNames string) ([]V
 }
 
 // ListV3ServicePlansByQuery retrieves service plans based on query
-func (c *Client) ListV3ServicePlansByQuery(query url.Values) ([]V3ServicePlan, []V3ServiceOffering, error) {
+func (c *Client) ListV3ServicePlansByQuery(query url.Values) ([]V3Plan, []V3Offering, error) {
 	{
 		var (
-			plans     []V3ServicePlan
-			offerings []V3ServiceOffering
+			plans     []V3Plan
+			offerings []V3Offering
 		)
 
 		requestURL, err := url.Parse("/v3/service_plans")
@@ -229,7 +249,7 @@ func (c *Client) ListV3ServicePlansByQuery(query url.Values) ([]V3ServicePlan, [
 }
 
 // appendUniqOfferings adding offering to the list if there are no offerings with such GUID already added
-func appendUniqOfferings(offerings []V3ServiceOffering, newOfferings ...V3ServiceOffering) []V3ServiceOffering {
+func appendUniqOfferings(offerings []V3Offering, newOfferings ...V3Offering) []V3Offering {
 	var exists bool
 	for _, no := range newOfferings {
 
